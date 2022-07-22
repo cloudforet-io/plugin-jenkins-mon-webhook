@@ -21,21 +21,23 @@ class EventManager(BaseManager):
             _LOGGER.debug(data)
             _LOGGER.debug("-----")
 
-            event_dict = {
-                'event_key': self._generate_event_key(data.get('run_id')),
-                'event_type': 'ALERT',
-                'severity': self._set_severity(data.get('run_status')),
-                'resource': {},
-                'description': self._set_description(data),
-                'title': self._set_title(data),
-                'rule': '',
-                'occurred_at': data.get('run_created_at', ''),
-                'additional_info': self._set_additional_info(data)
-            }
+            # event_dict = {
+            #     'event_key': self._generate_event_key(data.get('run_id')),
+            #     'event_type': 'ALERT',
+            #     'severity': self._set_severity(data.get('run_status')),
+            #     'resource': {},
+            #     'description': self._set_description(data),
+            #     'title': self._set_title(data),
+            #     'rule': '',
+            #     'occurred_at': data.get('run_created_at', ''),
+            #     'additional_info': self._set_additional_info(data)
+            # }
+            #
+            # event_model = EventModel(event_dict, strict=False)
+            # event_model.validate()
+            # return [event_model.to_native()]
 
-            event_model = EventModel(event_dict, strict=False)
-            event_model.validate()
-            return [event_model.to_native()]
+            return []
 
         except Exception as e:
             raise ERROR_EVENT_PARSE()
