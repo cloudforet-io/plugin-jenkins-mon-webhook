@@ -1,0 +1,7 @@
+---
+name: Jenkins webhook
+service_type: monitoring.Webhook
+image: spaceone/plugin-jenkins-mon-webhook
+labels: ['Webhook', 'Jenkins']
+tags:
+  icon: https://spaceone-custom-assets.s3.ap-northeast-2.amazonaws.com/console-assets/icons/jenkins.svg

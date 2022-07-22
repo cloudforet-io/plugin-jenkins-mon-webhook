@@ -1,2 +1,2 @@
 # plugin-jenkins-mon-webhook
-plugin-jenkins-mon-webhook
+webhook for jenkins
