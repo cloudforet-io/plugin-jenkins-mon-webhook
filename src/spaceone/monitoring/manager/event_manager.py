@@ -1,4 +1,5 @@
 import logging
+import datetime
 from spaceone.core.manager import BaseManager
 from spaceone.core.utils import random_string
 from spaceone.monitoring.model.event_response_model import EventModel
@@ -21,105 +22,112 @@ class EventManager(BaseManager):
             _LOGGER.debug(data)
             _LOGGER.debug("-----")
 
-            # event_dict = {
-            #     'event_key': self._generate_event_key(data.get('run_id')),
-            #     'event_type': 'ALERT',
-            #     'severity': self._set_severity(data.get('run_status')),
-            #     'resource': {},
-            #     'description': self._set_description(data),
-            #     'title': self._set_title(data),
-            #     'rule': '',
-            #     'occurred_at': data.get('run_created_at', ''),
-            #     'additional_info': self._set_additional_info(data)
-            # }
-            #
-            # event_model = EventModel(event_dict, strict=False)
-            # event_model.validate()
-            # return [event_model.to_native()]
+            event_dict = {
+                'event_key': self._generate_event_key(data.get('url')),
+                'event_type': self._set_event_type(data),
+                'severity': self._set_severity(data),
+                'resource': {},
+                'title': self._set_title(data),
+                'description': self._set_description(data),
+                'rule': '',
+                'occurred_at': self._set_occurred_at(data),
+                'additional_info': self._set_additional_info(data)
+            }
 
-            return []
+            event_model = EventModel(event_dict, strict=False)
+            event_model.validate()
+            return [event_model.to_native()]
 
         except Exception as e:
             raise ERROR_EVENT_PARSE()
 
     @staticmethod
-    def _generate_event_key(run_id):
-        if run_id:
-            return run_id
+    def _generate_event_key(url):
+        if url:
+            return url
         else:
             return random_string()
 
     @staticmethod
-    def _set_severity(run_status):
+    def _set_severity(data):
         severity = 'INFO'
 
-        if run_status and run_status.lower() == 'errored':
+        if data.get('build', {}).get('status') == 'FAILURE':
             severity = 'ERROR'
 
         return severity
 
     @staticmethod
+    def _set_event_type(data):
+        event_type = 'ALERT'
+
+        if data.get('build', {}).get('status') == 'FAILURE':
+            event_type = 'ERROR'
+
+        return event_type
+
+    @staticmethod
     def _set_title(data):
-        notifications = data.get('notifications', [])
-
-        if notifications:
-            _notification = notifications[0]
-            message = f'[Terraform Cloud] {_notification.get("message", DEFAULT_TITLE)}'
-        else:
-            message = f'[Terraform Cloud] {DEFAULT_TITLE}'
-
-        if data.get('workspace_name'):
-            message = f'{message} in Workspace "{data["workspace_name"]}"'
-
-        return message
+        return f'[Jenkins] Build - {data.get("display_name")}'
 
     @staticmethod
     def _set_description(data):
-        description = ""
-        notifications = data.get('notifications', [])
-        _notification = None
+        description = "Build Notifications\n\n"
+        build = data.get('build', {})
 
-        if notifications:
-            _notification = notifications[0]
-            description = f'{_notification.get("message", "")}\n\n'
+        if data.get('name'):
+            description = f'{description} - Name: {data["name"]}\n'
 
-        if data.get('organization_name'):
-            description = f'{description} - Organization Name: {data["organization_name"]}\n'
+        if build.get('number'):
+            description = f'{description} - Build Number: {build["number"]}\n'
 
-        if data.get('workspace_name'):
-            description = f'{description} - Workspace Name: {data["workspace_name"]}\n'
+        if data.get('url'):
+            description = f'{description} - URL: {data["url"]}\n'
 
-        if data.get('run_id'):
-            description = f'{description} - Run ID: {data["run_id"]}\n'
+        if build.get('phase'):
+            description = f'{description} - Build Phase: {build["phase"]}\n'
 
-        if _notification and _notification.get('run_status'):
-            description = f'{description} - Run Status: {_notification.get("run_status")}\n'
+        if build.get('status'):
+            description = f'{description} - Build Status: {build["status"]}\n'
 
-        if data.get('run_created_by'):
-            description = f'{description} - Run By: {data["run_created_by"]}\n'
-
-        if data.get('run_url'):
-            description = f'{description} - Run URL: {data["run_url"]}\n'
+        if build.get('duration'):
+            description = f'{description} - Build Duration: {build["duration"]} Sec.\n'
 
         return description
 
     @staticmethod
+    def _set_occurred_at(data):
+        occurred_at = None
+
+        if timestamp := data.get('build', {}).get('timestamp'):
+            occurred_at = datetime.datetime.fromtimestamp(timestamp/1000)
+
+        return occurred_at
+
+    @staticmethod
     def _set_additional_info(data):
         info = {}
+        build = data.get('build', {})
 
-        if data.get('organization_name'):
-            info.update({'organization_name': data['organization_name']})
+        info.update({'build_no': build.get('number')})
+        info.update({'url': data.get('url')})
+        info.update({'full_url': build.get('full_url')})
+        info.update({'build_phase': build.get('phase')})
+        info.update({'build_status': build.get('status')})
+        info.update({'build_duration': build.get('duration')})
 
-        if data.get('workspace_id'):
-            info.update({'workspace_id': data['workspace_id']})
+        if log := build.get('log'):
+            info.update({'log': log})
 
-        if data.get('workspace_name'):
-            info.update({'workspace_name': data['workspace_name']})
+        if notes := build.get('notes'):
+            info.update({'notes': notes})
 
-        if data.get('notification_configuration_id'):
-            info.update({'notification_configuration_id': data['notification_configuration_id']})
+        if 'scm' in build:
+            info.update({'scm': build['scm']})
 
-        if data.get('run_url'):
-            info.update({'run_url': data['run_url']})
+        if 'artifacts' in build:
+            info.update({'artifacts': build['artifacts']})
+
+        info.update({'timestamp': build.get('timestamp')})
 
         return info
