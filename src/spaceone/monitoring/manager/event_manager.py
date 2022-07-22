@@ -36,8 +36,6 @@ class EventManager(BaseManager):
 
             event_model = EventModel(event_dict, strict=False)
             event_model.validate()
-
-            _LOGGER.debug(event_model.to_native())
             return [event_model.to_native()]
 
         except Exception as e:
